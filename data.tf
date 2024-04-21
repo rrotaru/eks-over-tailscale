@@ -74,7 +74,7 @@ data "aws_availability_zones" "available" {}
 # Security Groups
 
 data "aws_security_group" "default" {
-  id = "********"
+  id = "sg-c2df0cae"
 }
 
 # EKS
