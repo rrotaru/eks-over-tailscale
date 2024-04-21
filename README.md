@@ -4,11 +4,11 @@ This repo provisions an EKS cluster and all required infrastructure + configurat
 
 ## AWS infrastructure
 
-This repository will create the following resources:
+This repository will create the following resources via Terraform:
 
 - Networking (VPC with private subnets)
 - EKS Cluster and node groups
-- EC2 Helper instance for using helm and eksctl to set up the tailscale operator
+- EC2 Helper instance for using helm and kubectl to set up the tailscale operator
 - IAM
 - Security groups
 
@@ -20,9 +20,9 @@ To configure this plugin, you'll need to add an annotation to the `aws-node` ser
 kubectl annotate serviceaccount -n kube-system aws-node eks.amazonaws.com/role-arn=arn:aws:iam::<aws-account-num>:role/AmazonEKSVPCCNIRole
 ```
 
-### Configure `kubectl` for EC2 helper instance via SSM
+### Configure `kubectl` on the EC2 helper instance via SSM
 
-You should be able to connect to your `k8s-helper-instance` via SSM. Once you are connected, you will need an AWS SSO session in order to create your kubeconfig file and auth to your EKS cluster using OIDC. Run the following on the EC2 instance:
+You should be able to connect to your `k8s-helper-instance` EC2 via SSM. Once you are connected, you will need an AWS SSO session in order to create your kubeconfig file and auth to your EKS cluster using OIDC. Run the following on the EC2 instance:
 
 ```sh
 # Login via SSO on the EC2 instance. Copy the 8 character XXXX-XXXX code, then click the link and enter the code.
@@ -32,9 +32,19 @@ aws sso login --profile=ssm
 aws eks update-kubeconfig --name main
 ```
 
+Should your tailnet-operator pod go down, this EC2 instance will serve as a fallback to connect to your EKS cluster. You may choose to terminate and re-provision it when needed to save on resources. You can destroy this instance with Terraform via:
+
+```sh
+terraform destroy --target=aws_instance.k8s_helper
+```
+
+Do not terminate this EC2 instance until you have validated that you can access your cluster via the tailnet.
+
 ## Tailnet config
 
-- ACLs for accessing k8s
+This repository will create the following resources via Terraform:
+
+- ACLs for accessing k8s (managing your Tailscale ACL via Terraform will overwrite any existing ACL)
 
 You'll additionally need to run the following via eksctl on the EC2 helper instance (connect via ssm and follow the steps above):
 
