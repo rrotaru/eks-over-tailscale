@@ -54,10 +54,11 @@ resource "aws_vpc" "main" {
 }
 
 resource "aws_subnet" "main" {
-  count             = var.aws_desired_az_num
-  vpc_id            = aws_vpc.main.id
-  availability_zone = data.aws_availability_zones.available.names[count.index]
-  cidr_block        = "172.31.${count.index * 16}.0/20"
+  count                   = var.aws_desired_az_num
+  vpc_id                  = aws_vpc.main.id
+  availability_zone       = data.aws_availability_zones.available.names[count.index]
+  cidr_block              = "172.31.${count.index * 16}.0/20"
+  map_public_ip_on_launch = true
 }
 
 resource "aws_internet_gateway" "main-igw" {
@@ -78,6 +79,26 @@ resource "aws_route_table_association" "main-rt" {
 
   subnet_id      = aws_subnet.main.*.id[count.index]
   route_table_id = aws_route_table.main-rt.id
+}
+
+resource "aws_vpc_endpoint" "ssm_endpoint" {
+  for_each = toset([
+    "ssm",
+    "ec2",
+    "kms",
+    "logs",
+    "ssmmessages",
+    "ec2messages"
+  ])
+
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.${var.aws_region}.${each.key}"
+  vpc_endpoint_type   = "Interface"
+  private_dns_enabled = true
+  subnet_ids          = aws_subnet.main[*].id
+  security_group_ids = [
+    aws_security_group.ssm_endpoint.id
+  ]
 }
 
 # EKS cluster
@@ -137,6 +158,22 @@ resource "aws_eks_addon" "eks_addon_coredns" {
   addon_name   = "coredns"
 }
 
+resource "aws_eks_access_entry" "ec2_k8s_helper" {
+  cluster_name      = aws_eks_cluster.main.name
+  principal_arn     = aws_iam_role.ec2_ssm_role.arn
+  type              = "STANDARD"
+}
+
+resource "aws_eks_access_policy_association" "ec2_k8s_helper_cluster_admin" {
+  cluster_name  = aws_eks_cluster.main.name
+  principal_arn = aws_iam_role.ec2_ssm_role.arn
+  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+
+  access_scope {
+    type       = "cluster"
+  }
+}
+
 # EC2 nodegroups
 
 resource "aws_eks_node_group" "default" {
@@ -171,7 +208,11 @@ resource "aws_instance" "k8s_helper" {
   ami                  = data.aws_ami.linux.id
   instance_type        = "t2.micro"
   iam_instance_profile = aws_iam_instance_profile.ec2_ssm_iam_instance_profile.id
-  user_data            = file("${path.module}/userdata.sh")
+  user_data            = templatefile("${path.module}/userdata.tpl", {
+    aws_account = var.aws_account,
+    aws_region = var.aws_region,
+    aws_sso_login_url = var.aws_sso_login_url
+  })
 
   security_groups = [
     aws_security_group.ec2_ssm_sg.name
@@ -181,8 +222,8 @@ resource "aws_instance" "k8s_helper" {
     Name = "k8s-helper-instance"
   }
 
-  depends_on = [ 
-    aws_iam_role.ec2_ssm_role 
+  depends_on = [
+    aws_iam_role.ec2_ssm_role
   ]
 }
 
@@ -229,6 +270,19 @@ resource "aws_vpc_security_group_egress_rule" "ec2_ssm_sg_rule_allow_all_outboun
   cidr_ipv4         = "0.0.0.0/0"
 }
 
+resource "aws_security_group" "ssm_endpoint" {
+  name        = "vps-ssm-endpoint-sg"
+  description = "Allow inbound TCP/443 traffic from our VPC"
+  vpc_id      = aws_vpc.main.id
+}
+
+resource "aws_vpc_security_group_ingress_rule" "vpc_endpoint_ssm_allow_inbound_443" {
+  security_group_id = aws_security_group.ssm_endpoint.id
+  ip_protocol       = "tcp"
+  cidr_ipv4         = "172.31.0.0/16"
+  to_port           = 443
+  from_port         = 443
+}
 
 # Tailscale
 

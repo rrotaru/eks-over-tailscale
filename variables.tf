@@ -13,6 +13,11 @@ variable "aws_region" {
   default     = "us-east-2"
 }
 
+variable "aws_sso_login_url" {
+  description = "AWS SSO Login start page"
+  type        = string
+}
+
 variable "aws_desired_az_num" {
   description = "Desired number of availability zones to use"
   type        = number

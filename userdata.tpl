@@ -11,5 +11,17 @@ chmod +x /usr/bin/kubectl
 # Download and install helm
 curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | sh
 
-# Create ~/.kube/config
-aws eks update-kubeconfig --name main
+# Set up aws cli and kube config
+mkdir ~/.aws
+cat <<EOF > ~/.aws/config
+[profile ssm]
+sso_session = ssm
+sso_account_id = ${aws_account}
+sso_role_name = AdministratorAccess
+region = ${aws_region}
+output = yaml
+[sso-session ssm]
+sso_start_url = ${aws_sso_login_url}
+sso_region = ${aws_region}
+sso_registration_scopes = sso:account:access
+EOF

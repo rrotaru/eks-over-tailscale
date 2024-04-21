@@ -20,11 +20,23 @@ To configure this plugin, you'll need to add an annotation to the `aws-node` ser
 kubectl annotate serviceaccount -n kube-system aws-node eks.amazonaws.com/role-arn=arn:aws:iam::<aws-account-num>:role/AmazonEKSVPCCNIRole
 ```
 
+### Configure `kubectl` for EC2 helper instance via SSM
+
+You should be able to connect to your `k8s-helper-instance` via SSM. Once you are connected, you will need an AWS SSO session in order to create your kubeconfig file and auth to your EKS cluster using OIDC. Run the following on the EC2 instance:
+
+```sh
+# Login via SSO on the EC2 instance. Copy the 8 character XXXX-XXXX code, then click the link and enter the code.
+aws sso login --profile=ssm
+
+# Create a file in your ~/.kube/config to allow you to run kubectl and helm commands.
+aws eks update-kubeconfig --name main
+```
+
 ## Tailnet config
 
 - ACLs for accessing k8s
 
-You'll additionally need to run the following via eksctl on the EC2 helper instance (connect via ssm):
+You'll additionally need to run the following via eksctl on the EC2 helper instance (connect via ssm and follow the steps above):
 
 ```sh
 #!/bin/sh
