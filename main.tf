@@ -18,6 +18,14 @@ resource "aws_iam_role" "eks_vpc_cni_role" {
   ]
 }
 
+resource "aws_iam_role" "eks_s3_mountpoint_role" {
+  name = "AmazonEKS_S3_CSI_DriverRole"
+  assume_role_policy = data.aws_iam_policy_document.eks_s3_mountpoint_role_assume_role_policy.json
+  managed_policy_arns = [
+    "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+  ]
+}
+
 resource "aws_iam_role" "eks_cluster_role" {
   name               = "EKSClusterRole"
   description        = "Allows access to other AWS service resources that are required to operate clusters managed by EKS."
@@ -158,6 +166,12 @@ resource "aws_eks_addon" "eks_addon_coredns" {
   addon_name   = "coredns"
 }
 
+resource "aws_eks_addon" "eks_addon_mountpoint_s3" {
+  cluster_name = aws_eks_cluster.main.name
+  addon_name   = "aws-mountpoint-s3-csi-driver"
+  service_account_role_arn = aws_iam_role.eks_s3_mountpoint_role.arn
+}
+
 resource "aws_eks_access_entry" "ec2_k8s_helper" {
   cluster_name      = aws_eks_cluster.main.name
   principal_arn     = aws_iam_role.ec2_ssm_role.arn
@@ -282,6 +296,31 @@ resource "aws_vpc_security_group_ingress_rule" "vpc_endpoint_ssm_allow_inbound_4
   cidr_ipv4         = "172.31.0.0/16"
   to_port           = 443
   from_port         = 443
+}
+
+# S3
+
+resource "aws_s3_bucket" "eks_persistent_storage" {
+  bucket = "eks-persistent-storage-mountpoint"
+}
+
+resource "aws_s3_bucket_public_access_block" "private_s3_bucket_config" {
+  bucket = aws_s3_bucket.eks_persistent_storage.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "encrypted_s3_bucket_config" {
+  bucket = aws_s3_bucket.eks_persistent_storage.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm     = "aws:kms"
+    }
+  }
 }
 
 # Tailscale
