@@ -39,6 +39,29 @@ data "aws_iam_policy_document" "eks_vpc_cni_role_assume_role_policy" {
   }
 }
 
+data "aws_iam_policy_document" "eks_s3_mountpoint_role_assume_role_policy" {
+  statement {
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "${local.oidc_url}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${local.oidc_url}:sub"
+      values   = ["system:serviceaccount:kube-system:aws-node"]
+    }
+
+    principals {
+      type        = "Federated"
+      identifiers = [aws_iam_openid_connect_provider.main.arn]
+    }
+  }
+}
+
 data "aws_iam_policy_document" "eks_cluster_role_assume_role_policy" {
   statement {
     actions = ["sts:AssumeRole"]
