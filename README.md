@@ -12,14 +12,6 @@ This repository will create the following resources via Terraform:
 - IAM
 - Security groups
 
-### AWS VPC CNI plugin
-
-To configure this plugin, you'll need to add an annotation to the `aws-node` service account by running the following:
-
-```sh
-kubectl annotate serviceaccount -n kube-system aws-node eks.amazonaws.com/role-arn=arn:aws:iam::<aws-account-num>:role/AmazonEKSVPCCNIRole
-```
-
 ### Configure `kubectl` on the EC2 helper instance via SSM
 
 You should be able to connect to your `k8s-helper-instance` EC2 via SSM. Once you are connected, you will need an AWS SSO session in order to create your kubeconfig file and auth to your EKS cluster using OIDC. Run the following on the EC2 instance:

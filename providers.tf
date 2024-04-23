@@ -8,7 +8,8 @@ provider "aws" {
     key_prefixes = [
       "kubernetes.io/",
       "alpha.eksctl.io/",
-      "eksctl.cluster.k8s.io/"
+      "eksctl.cluster.k8s.io/",
+      "AMPAgentlessScraper"
     ]
   }
 }

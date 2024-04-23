@@ -33,7 +33,6 @@ resource "aws_iam_role" "ec2_ssm_role" {
   managed_policy_arns = [
     "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore",
     "arn:aws:iam::aws:policy/AmazonSSMPatchAssociation",
-    "arn:aws:iam::aws:policy/AdministratorAccess" # warning! this is highly privileged and only to be used temporarily
   ]
 
 }
@@ -51,6 +50,12 @@ resource "aws_vpc" "main" {
   tags = {
     "Name" = "main"
   }
+}
+
+resource "aws_network_interface" "main" {
+  count = var.aws_desired_az_num
+  subnet_id       = aws_subnet.main.*.id[count.index]
+  security_groups = [data.aws_security_group.default.id]
 }
 
 resource "aws_subnet" "main" {
