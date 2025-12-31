@@ -97,19 +97,15 @@ data "aws_availability_zones" "available" {}
 # Security Groups
 
 data "aws_security_group" "default" {
-  id = "sg-c2df0cae"
+  vpc_id = aws_vpc.main.id
+
+  filter {
+    name   = "group-name"
+    values = ["default"]
+  }
 }
 
 # EKS
-
-data "aws_eks_cluster" "main_eks" {
-  name = "main"
-}
-
-data "aws_eks_node_group" "main_eks_nodegroup" {
-  cluster_name    = "main"
-  node_group_name = "default-nodegroup"
-}
 
 data "tls_certificate" "main" {
   url = aws_eks_cluster.main.identity[0].oidc[0].issuer
@@ -121,15 +117,9 @@ data "aws_ami" "linux" {
   owners      = ["amazon"]
   most_recent = true
 
-  # todo: leverage the latest amazon linux 2023 image
-  # filter {
-  #   name   = "name"
-  #   values = ["al2023-ami-*"]
-  # }
-
   filter {
     name   = "image-id"
-    values = ["ami-09b90e09742640522"]
+    values = [var.ec2_helper_ami_id]
   }
 }
 
